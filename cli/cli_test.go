@@ -17,6 +17,10 @@ func Test_ghome(t *testing.T) {
 	Convey("查询ghome路径", t, func() {
 		home, err := os.UserHomeDir()
 		So(err, ShouldBeNil)
+		if dir := os.Getenv(homeEnv); dir != "" {
+			So(ghome(), ShouldEqual, dir)
+			return
+		}
 		So(ghome(), ShouldEqual, filepath.Join(home, ".g"))
 	})
 }

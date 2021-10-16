@@ -84,7 +84,7 @@ func install(ctx *cli.Context) (err error) {
 		ext = "tar.gz"
 	}
 	filename := filepath.Join(downloadsDir, fmt.Sprintf("go%s.%s-%s.%s", vname, runtime.GOOS, runtime.GOARCH, ext))
-
+	fmt.Println("Downloading ---- " + filename)
 	if _, err = os.Stat(filename); os.IsNotExist(err) {
 		// 本地不存在安装包，从远程下载并检查校验和。
 		if _, err = pkg.DownloadWithProgress(filename); err != nil {

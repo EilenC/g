@@ -29,6 +29,12 @@ var (
 			Action:    install,
 		},
 		{
+			Name:      "config",
+			Usage:     "View system g config",
+			UsageText: "g config <version>",
+			Action:    config,
+		},
+		{
 			Name:      "uninstall",
 			Usage:     "Uninstall a version",
 			UsageText: "g uninstall <version>",

@@ -86,10 +86,8 @@ const (
 
 // ghome 返回g根目录
 func ghome() (dir string) {
-	if experimental := os.Getenv(experimentalEnv); experimental == "true" {
-		if dir = os.Getenv(homeEnv); dir != "" {
-			return dir
-		}
+	if dir = os.Getenv(homeEnv); dir != "" {
+		return dir
 	}
 	homeDir, _ := os.UserHomeDir()
 	return filepath.Join(homeDir, ".g")
