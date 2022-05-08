@@ -1,9 +1,9 @@
 package cli
 
-import "github.com/urfave/cli"
+import "github.com/urfave/cli/v2"
 
 var (
-	commands = []cli.Command{
+	commands = []*cli.Command{
 		{
 			Name:      "ls",
 			Usage:     "List installed versions",
@@ -39,6 +39,12 @@ var (
 			Usage:     "Uninstall a version",
 			UsageText: "g uninstall <version>",
 			Action:    uninstall,
+		},
+		{
+			Name:      "update",
+			Usage:     "Fetch the newest version of g",
+			UsageText: "g update",
+			Action:    update,
 		},
 		{
 			Name:      "clean",

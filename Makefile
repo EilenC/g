@@ -15,7 +15,7 @@ install: build
 
 build-all: build-linux build-darwin build-windows
 
-build-linux: build-linux-386 build-linux-amd64 build-linux-arm build-linux-arm64
+build-linux: build-linux-386 build-linux-amd64 build-linux-arm build-linux-arm64 build-linux-s390x
 build-linux-386:
 	GOOS=linux GOARCH=386 $(GO) build $(GO_FLAGS) -o bin/linux-386/g
 build-linux-amd64:
@@ -24,6 +24,8 @@ build-linux-arm:
 	GOOS=linux GOARCH=arm $(GO) build $(GO_FLAGS) -o bin/linux-arm/g
 build-linux-arm64:
 	GOOS=linux GOARCH=arm64 $(GO) build $(GO_FLAGS) -o bin/linux-arm64/g
+build-linux-s390x:
+    GOOS=linux GOARCH=s390x $(GO) build $(GO_FLAGS) -o  bin/linux-s390x/g
 
 
 build-darwin: build-darwin-amd64 build-darwin-arm64
@@ -43,12 +45,15 @@ build-windows-arm:
 build-windows-arm64:
 	GOOS=windows GOARCH=arm64 $(GO) build $(GO_FLAGS) -o bin/windows-arm64/g.exe
 
+package:
+	sh ./package.sh
 
 test:
 	$(GO) test -v ./...
 
 clean:
 	$(GO) clean -x
-	rm -r bin
+	rm -f sha256sum.txt
+	rm -rf bin
 
-.PHONY: all build install test clean build-linux build-darwin build-windows build-linux-386 build-linux-amd64 build-linux-arm build-linux-arm64 build-darwin-amd64 build-darwin-arm64 build-windows-386 build-windows-amd64 build-windows-arm build-windows-arm64
+.PHONY: all build install test package clean build-linux build-darwin build-windows build-linux-386 build-linux-amd64 build-linux-arm build-linux-arm64 build-linux-s390x build-darwin-amd64 build-darwin-arm64 build-windows-386 build-windows-amd64 build-windows-arm build-windows-arm64

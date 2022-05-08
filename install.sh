@@ -13,6 +13,12 @@ function get_arch() {
     "aarch64" | "arm64")
         echo "arm64"
         ;;
+    "armv6l" | "armv7l")
+        echo "arm"
+	;;
+    "s390x")
+        echo "s390x"
+        ;;
     *)
         echo ${NIL}
         ;;
@@ -24,7 +30,7 @@ function get_os() {
 }
 
 main() {
-    local release="1.2.1"
+    local release="1.3.0"
     local os=$(get_os)
     local arch=$(get_arch)
     local dest_file="${HOME}/g${release}.${os}-${arch}.tar.gz"

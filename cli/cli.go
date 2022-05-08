@@ -10,7 +10,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/fatih/color"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"github.com/voidint/g/build"
 )
 
@@ -27,8 +27,8 @@ func Run() {
 	app.Name = "g"
 	app.Usage = "Golang Version Manager"
 	app.Version = build.Version()
-	app.Copyright = "Copyright (c) 2019-2021, voidint. All rights reserved."
-	app.Authors = []cli.Author{{Name: "voidint", Email: "voidint@126.com"}}
+	app.Copyright = "Copyright (c) 2019-2022, voidint. All rights reserved."
+	app.Authors = []*cli.Author{{Name: "voidint", Email: "voidint@126.com"}}
 
 	app.Before = func(ctx *cli.Context) (err error) {
 		ghomeDir = ghome()

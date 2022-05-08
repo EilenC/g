@@ -9,11 +9,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const (
-	// DefaultURL 提供go版本信息的默认网址
-	DefaultURL = "https://golang.org/dl/"
-)
-
 // URLUnreachableError URL不可达错误
 type URLUnreachableError struct {
 	err error
@@ -28,7 +23,7 @@ func NewURLUnreachableError(url string, err error) error {
 	}
 }
 
-func (e *URLUnreachableError) Error() string {
+func (e URLUnreachableError) Error() string {
 	var buf strings.Builder
 	buf.WriteString(fmt.Sprintf("URL %q is unreachable", e.url))
 	if e.err != nil {
@@ -36,6 +31,19 @@ func (e *URLUnreachableError) Error() string {
 	}
 	return buf.String()
 }
+
+func (e URLUnreachableError) Err() error {
+	return e.err
+}
+
+func (e URLUnreachableError) URL() string {
+	return e.url
+}
+
+const (
+	// DefaultURL 提供go版本信息的默认网址
+	DefaultURL = "https://go.dev/dl/"
+)
 
 // Collector go版本信息采集器
 type Collector struct {
@@ -55,7 +63,7 @@ func NewCollector(url string) (*Collector, error) {
 		url:  url,
 		pURL: pURL,
 	}
-	if err := c.loadDocument(); err != nil {
+	if err = c.loadDocument(); err != nil {
 		return nil, err
 	}
 	return &c, nil

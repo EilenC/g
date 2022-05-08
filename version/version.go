@@ -1,23 +1,21 @@
 package version
 
 import (
-	"crypto/sha1"
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"hash"
-	"io"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/k0kubun/go-ansi"
-	"github.com/schollz/progressbar/v3"
+	"github.com/voidint/g/pkg/checksum"
+	myhttp "github.com/voidint/g/pkg/http"
 )
 
-// ErrVersionNotFound 版本不存在
-var ErrVersionNotFound = errors.New("version not found")
+var (
+	// ErrVersionNotFound 版本不存在
+	ErrVersionNotFound = errors.New("version not found")
+	// ErrPackageNotFound 版本包不存在
+	ErrPackageNotFound = errors.New("installation package not found")
+)
 
 // FindVersion 返回指定名称的版本
 func FindVersion(all []*Version, name string) (*Version, error) {
@@ -34,9 +32,6 @@ type Version struct {
 	Name     string // 版本名，如'1.12.4'
 	Packages []*Package
 }
-
-// ErrPackageNotFound 版本包不存在
-var ErrPackageNotFound = errors.New("installation package not found")
 
 // FindPackage 返回指定操作系统和硬件架构的版本包
 func (v *Version) FindPackage(kind, goos, goarch string) (*Package, error) {
@@ -87,91 +82,10 @@ const (
 	InstallerKind = "Installer"
 )
 
-// Download 下载版本另存为指定文件
-func (pkg *Package) Download(dst string) (size int64, err error) {
-	resp, err := http.Get(pkg.URL)
-	if err != nil {
-		return 0, NewDownloadError(pkg.URL, err)
-	}
-	defer resp.Body.Close()
-	f, err := os.Create(dst)
-	if err != nil {
-		return 0, NewDownloadError(pkg.URL, err)
-	}
-	defer f.Close()
-	size, err = io.Copy(f, resp.Body)
-	if err != nil {
-		return 0, NewDownloadError(pkg.URL, err)
-	}
-	return size, nil
-}
-
 // DownloadWithProgress 下载版本另存为指定文件且显示下载进度
 func (pkg *Package) DownloadWithProgress(dst string) (size int64, err error) {
-	resp, err := http.Get(pkg.URL)
-	if err != nil {
-		return 0, NewDownloadError(pkg.URL, err)
-	}
-	defer resp.Body.Close()
-
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return 0, NewDownloadError(pkg.URL, err)
-	}
-	defer f.Close()
-
-	bar := progressbar.NewOptions64(
-		resp.ContentLength,
-		progressbar.OptionSetWidth(15),
-		progressbar.OptionSetDescription("Downloading"),
-		progressbar.OptionSetWriter(ansi.NewAnsiStdout()),
-		progressbar.OptionShowBytes(true),
-		progressbar.OptionThrottle(65*time.Millisecond),
-		progressbar.OptionShowCount(),
-		progressbar.OptionOnCompletion(func() {
-			fmt.Fprint(ansi.NewAnsiStdout(), "\n")
-		}),
-		// progressbar.OptionSpinnerType(35),
-		// progressbar.OptionFullWidth(),
-	)
-	bar.RenderBlank()
-
-	size, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
-	if err != nil {
-		return size, NewDownloadError(pkg.URL, err)
-	}
-	return size, nil
+	return myhttp.Download(pkg.URL, dst, os.O_CREATE|os.O_WRONLY, 0644, true)
 }
-
-// DownloadError 下载失败错误
-type DownloadError struct {
-	url string
-	err error
-}
-
-// NewDownloadError 返回下载失败错误实例
-func NewDownloadError(url string, err error) error {
-	return &DownloadError{
-		url: url,
-		err: err,
-	}
-}
-
-func (e *DownloadError) Error() string {
-	var buf strings.Builder
-	buf.WriteString(fmt.Sprintf("Installation package(%s) download failed", e.url))
-	if e.err != nil {
-		buf.WriteString(" ==> " + e.err.Error())
-	}
-	return buf.String()
-}
-
-var (
-	// ErrUnsupportedChecksumAlgorithm 不支持的校验和算法
-	ErrUnsupportedChecksumAlgorithm = errors.New("unsupported checksum algorithm")
-	// ErrChecksumNotMatched 校验和不匹配
-	ErrChecksumNotMatched = errors.New("file checksum does not match the computed checksum")
-)
 
 const (
 	// SHA256 校验和算法-sha256
@@ -182,27 +96,14 @@ const (
 
 // VerifyChecksum 验证目标文件的校验和与当前安装包的校验和是否一致
 func (pkg *Package) VerifyChecksum(filename string) (err error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	var h hash.Hash
+	var algo checksum.Algorithm
 	switch pkg.Algorithm {
 	case SHA256:
-		h = sha256.New()
+		algo = checksum.SHA256
 	case SHA1:
-		h = sha1.New()
+		algo = checksum.SHA1
 	default:
-		return ErrUnsupportedChecksumAlgorithm
+		return checksum.ErrUnsupportedChecksumAlgorithm
 	}
-
-	if _, err := io.Copy(h, f); err != nil {
-		return err
-	}
-	if pkg.Checksum != fmt.Sprintf("%x", h.Sum(nil)) {
-		return ErrChecksumNotMatched
-	}
-	return nil
+	return checksum.VerifyFile(algo, pkg.Checksum, filename)
 }
