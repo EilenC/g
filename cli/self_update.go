@@ -7,14 +7,16 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/urfave/cli/v2"
 	"github.com/voidint/g/build"
-	"github.com/voidint/g/github"
 	"github.com/voidint/g/pkg/checksum"
+	"github.com/voidint/g/pkg/errs"
+	httppkg "github.com/voidint/g/pkg/http"
+	"github.com/voidint/g/pkg/sdk/github"
 )
 
-func update(*cli.Context) (err error) {
+func selfUpdate(*cli.Context) (err error) {
 	up := github.NewReleaseUpdater()
 
 	// 检查更新
@@ -65,7 +67,7 @@ func findChecksum(items []github.Asset) (algo checksum.Algorithm, expectedChecks
 		}
 	}
 	if checksumFileURL == "" {
-		return checksum.SHA256, "", checksum.ErrChecksumFileNotFound
+		return checksum.SHA256, "", errs.ErrChecksumFileNotFound
 	}
 
 	resp, err := http.Get(checksumFileURL)
@@ -73,6 +75,10 @@ func findChecksum(items []github.Asset) (algo checksum.Algorithm, expectedChecks
 		return checksum.SHA256, "", err
 	}
 	defer resp.Body.Close()
+
+	if !httppkg.IsSuccess(resp.StatusCode) {
+		return "", "", errs.NewURLUnreachableError(checksumFileURL, fmt.Errorf("%d", resp.StatusCode))
+	}
 
 	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
@@ -85,5 +91,5 @@ func findChecksum(items []github.Asset) (algo checksum.Algorithm, expectedChecks
 	if err = scanner.Err(); err != nil {
 		return checksum.SHA256, "", err
 	}
-	return checksum.SHA256, "", checksum.ErrChecksumFileNotFound
+	return checksum.SHA256, "", errs.ErrChecksumFileNotFound
 }

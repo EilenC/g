@@ -1,20 +1,20 @@
 package github
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
-	"github.com/go-resty/resty/v2"
+	"github.com/Masterminds/semver/v3"
 	"github.com/mholt/archiver/v3"
 	"github.com/voidint/g/pkg/checksum"
-	myhttp "github.com/voidint/g/pkg/http"
+	"github.com/voidint/g/pkg/errs"
+	httppkg "github.com/voidint/g/pkg/http"
 	"github.com/voidint/go-update"
 )
 
@@ -38,22 +38,35 @@ func (a Asset) IsCompressedFile() bool {
 
 // ReleaseUpdater 版本更新器
 type ReleaseUpdater struct {
-	client *resty.Client
 }
 
 // NewReleaseUpdater 返回版本更新器实例
 func NewReleaseUpdater() *ReleaseUpdater {
-	return &ReleaseUpdater{
-		client: resty.New(),
-	}
+	return new(ReleaseUpdater)
 }
 
 // CheckForUpdates 检查是否有更新
 func (up ReleaseUpdater) CheckForUpdates(current *semver.Version, owner, repo string) (rel *Release, yes bool, err error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
 
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+
+	if !httppkg.IsSuccess(resp.StatusCode) {
+		return nil, false, errs.NewURLUnreachableError(url, fmt.Errorf("%d", resp.StatusCode))
+	}
+
 	var latest Release
-	if _, err = up.client.R().SetHeader("Accept", "application/vnd.github.v3+json").SetResult(&latest).Get(url); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&latest); err != nil {
 		return nil, false, err
 	}
 
@@ -67,9 +80,6 @@ func (up ReleaseUpdater) CheckForUpdates(current *semver.Version, owner, repo st
 	return nil, false, nil
 }
 
-// ErrAssetNotFound 资源不存在
-var ErrAssetNotFound = errors.New("asset not found")
-
 // Apply 更新指定版本
 func (up ReleaseUpdater) Apply(rel *Release,
 	findAsset func([]Asset) (idx int),
@@ -78,7 +88,7 @@ func (up ReleaseUpdater) Apply(rel *Release,
 	// 查找下载链接
 	idx := findAsset(rel.Assets)
 	if idx < 0 {
-		return ErrAssetNotFound
+		return errs.ErrAssetNotFound
 	}
 
 	// 查找校验和
@@ -97,7 +107,7 @@ func (up ReleaseUpdater) Apply(rel *Release,
 	url := rel.Assets[idx].BrowserDownloadURL
 	srcFilename := filepath.Join(tmpDir, filepath.Base(url))
 	dstFilename := srcFilename
-	if _, err = myhttp.Download(url, srcFilename, os.O_WRONLY|os.O_CREATE, 0644, true); err != nil {
+	if _, err = httppkg.Download(url, srcFilename, os.O_WRONLY|os.O_CREATE, 0644, true); err != nil {
 		return err
 	}
 
@@ -130,7 +140,7 @@ func (up ReleaseUpdater) unarchive(srcFile, dstDir string) (dstFile string, err 
 		return "", err
 	}
 	// 找到解压缩后的目标文件
-	fis, _ := ioutil.ReadDir(dstDir)
+	fis, _ := os.ReadDir(dstDir)
 	for _, fi := range fis {
 		if strings.HasSuffix(srcFile, fi.Name()) {
 			continue

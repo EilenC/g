@@ -1,32 +1,30 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
+	"github.com/voidint/g/version"
 )
 
 func Test_ghome(t *testing.T) {
-	Convey("查询ghome路径", t, func() {
+	t.Run("查询ghome路径", func(t *testing.T) {
 		home, err := os.UserHomeDir()
-		So(err, ShouldBeNil)
-		if dir := os.Getenv(homeEnv); dir != "" {
-			So(ghome(), ShouldEqual, dir)
-			return
-		}
-		So(ghome(), ShouldEqual, filepath.Join(home, ".g"))
+		assert.Nil(t, err)
+		assert.Equal(t, filepath.Join(home, ".g"), ghome())
 	})
 }
 
 func Test_inuse(t *testing.T) {
-	Convey("查询当前使用中的go版本", t, func() {
+	t.Run("查询当前使用中的go版本", func(t *testing.T) {
 		rootDir := filepath.Join(os.TempDir(), fmt.Sprintf(".g_%d", time.Now().Unix()))
 		goroot = filepath.Join(rootDir, "go")
 		versionsDir = filepath.Join(rootDir, "versions")
@@ -36,34 +34,73 @@ func Test_inuse(t *testing.T) {
 		_ = os.MkdirAll(vDir, 0755)
 		defer os.RemoveAll(rootDir)
 
-		So(mkSymlink(vDir, goroot), ShouldBeNil)
-		So(inuse(goroot), ShouldEqual, "1.12.6")
+		assert.Nil(t, mkSymlink(vDir, goroot))
+		assert.Equal(t, "1.12.6", inuse(goroot))
 	})
 }
 
 func Test_render(t *testing.T) {
-	Convey("渲染go版本列表", t, func() {
-		var buf strings.Builder
-		v0, _ := semver.NewVersion("1.13-beta1")
-		v1, _ := semver.NewVersion("1.11.11")
-		v2, _ := semver.NewVersion("1.7.0")
-		v3, _ := semver.NewVersion("1.8.1")
-		items := []*semver.Version{v0, v1, v2, v3}
+	t.Run("渲染go版本列表(text)", func(t *testing.T) {
+		var got strings.Builder
+		items := []*version.Version{
+			version.MustNew("1.19beta1"),
+			version.MustNew("1.10beta2"),
+			version.MustNew("1.7"),
+			version.MustNew("1.8.1"),
+			version.MustNew("1.21.0"),
+			version.MustNew("1.21rc4"),
+		}
+		sort.Sort(version.Collection(items))
 
-		render("1.8.1", items, &buf)
-		So(buf.String(), ShouldEqual, "  1.7\n* 1.8.1\n  1.11.11\n  1.13beta1\n")
+		render(textMode, map[string]bool{"1.8.1": true}, items, &got)
+		assert.Equal(t, "  1.7\n* 1.8.1\n  1.10beta2\n  1.19beta1\n  1.21rc4\n  1.21.0\n", got.String())
+	})
+
+	t.Run("渲染go版本列表(json)", func(t *testing.T) {
+		var actual strings.Builder
+		items := []*version.Version{
+			version.MustNew("1.19beta1"),
+			version.MustNew("1.10beta2"),
+			version.MustNew("1.7"),
+			version.MustNew("1.8.1"),
+			version.MustNew("1.21.0"),
+			version.MustNew("1.21rc4"),
+		}
+		sort.Sort(version.Collection(items))
+
+		installed := map[string]bool{"1.8.1": true}
+		render(jsonMode, installed, items, &actual)
+
+		vs := make([]versionOut, 0, len(items))
+		for _, item := range items {
+			vo := versionOut{
+				Version:  item.Name(),
+				Packages: item.Packages(),
+			}
+			if inuse, found := installed[item.Name()]; found {
+				vo.InUse = inuse
+				vo.Installed = found
+			}
+			vs = append(vs, vo)
+		}
+
+		var expected strings.Builder
+		enc := json.NewEncoder(&expected)
+		enc.SetIndent("", "    ")
+		_ = enc.Encode(&vs)
+		assert.Equal(t, expected.String(), actual.String())
 	})
 }
 
 func Test_wrapstring(t *testing.T) {
-	Convey("包装字符串", t, func() {
-		So(wrapstring("hello world"), ShouldEqual, "[g] Hello world")
+	t.Run("包装字符串", func(t *testing.T) {
+		assert.Equal(t, "[g] Hello world", wrapstring("hello world"))
 	})
 }
 
 func Test_errstring(t *testing.T) {
-	Convey("返回错误字符串", t, func() {
-		So(errstring(nil), ShouldBeBlank)
-		So(errstring(errors.New("hello world")), ShouldEqual, "[g] Hello world")
+	t.Run("返回错误字符串", func(t *testing.T) {
+		assert.Equal(t, "", errstring(nil))
+		assert.Equal(t, "[g] Hello world", errstring(errors.New("hello world")))
 	})
 }

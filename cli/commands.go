@@ -1,20 +1,46 @@
 package cli
 
-import "github.com/urfave/cli/v2"
+import (
+	"fmt"
+
+	"github.com/urfave/cli/v2"
+)
 
 var (
 	commands = []*cli.Command{
 		{
 			Name:      "list",
+			Aliases:   []string{"l"},
 			Usage:     "List installed versions",
 			UsageText: "g list",
-			Action:    list,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "output",
+					Aliases: []string{"o"},
+					Usage:   "Output format. One of: [text|json]",
+				},
+			},
+			Before: func(ctx *cli.Context) error {
+				return validateLsFlag(ctx)
+			},
+			Action: list,
 		},
 		{
 			Name:      "listall",
+			Aliases:   []string{"la"},
 			Usage:     "List remote versions available for install",
 			UsageText: "g listall [stable|archived|unstable]",
-			Action:    listRemote,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "output",
+					Aliases: []string{"o"},
+					Usage:   "Output format. One of: [text|json]",
+				},
+			},
+			Before: func(ctx *cli.Context) error {
+				return validateLsFlag(ctx)
+			},
+			Action: listRemote,
 		},
 		{
 			Name:      "use",
@@ -24,15 +50,17 @@ var (
 		},
 		{
 			Name:      "install",
+			Aliases:   []string{"i"},
 			Usage:     "Download and install a version",
 			UsageText: "g install <version>",
 			Action:    install,
-		},
-		{
-			Name:      "config",
-			Usage:     "View system g config",
-			UsageText: "g config <version>",
-			Action:    config,
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:    "nouse",
+					Aliases: []string{"n"},
+					Usage:   "Only install without using",
+				},
+			},
 		},
 		{
 			Name:      "uninstall",
@@ -42,9 +70,10 @@ var (
 		},
 		{
 			Name:      "update",
-			Usage:     "Fetch the newest version of g",
+			Usage:     "Download and install updates to g",
 			UsageText: "g update",
-			Action:    update,
+			Action:    selfUpdate,
+			Hidden:    true,
 		},
 		{
 			Name:      "clean",
@@ -52,5 +81,36 @@ var (
 			UsageText: "g clean",
 			Action:    clean,
 		},
+		{
+			Name:      "env",
+			Usage:     "Show env variables of g",
+			UsageText: "g env",
+			Action:    showEnv,
+		},
+		{
+			Name:  "self",
+			Usage: "Modify g itself",
+			Subcommands: []*cli.Command{
+				{
+					Name:      "update",
+					Usage:     "Download and install updates to g",
+					UsageText: "g self update",
+					Action:    selfUpdate,
+				},
+				{
+					Name:      "uninstall",
+					Usage:     "Uninstall g",
+					UsageText: "g self uninstall",
+					Action:    selfUninstall,
+				},
+			},
+		},
 	}
 )
+
+func validateLsFlag(ctx *cli.Context) error {
+	if out := ctx.String("output"); out != "" && out != "json" && out != "text" {
+		return cli.Exit(errstring(fmt.Errorf("unable to match a printer suitable for the output format %q, allowed formats are: [text|json]", out)), 1)
+	}
+	return nil
+}
