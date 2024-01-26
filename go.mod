@@ -14,6 +14,7 @@ require (
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/smartystreets/goconvey v1.7.2
+	github.com/urfave/cli v1.22.9
 	github.com/urfave/cli/v2 v2.4.0
 	github.com/voidint/go-update v1.0.0
 )

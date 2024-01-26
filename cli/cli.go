@@ -79,14 +79,14 @@ func init() {
 }
 
 const (
-	experimentalEnv = "G_EXPERIMENTAL"
-	homeEnv         = "G_HOME"
-	mirrorEnv       = "G_MIRROR"
+	homeEnv   = "G_HOME"
+	mirrorEnv = "G_MIRROR"
 )
 
 // ghome 返回g根目录
 func ghome() (dir string) {
 	if dir = os.Getenv(homeEnv); dir != "" {
+		//dir = filepath.Dir(dir)
 		return dir
 	}
 	homeDir, _ := os.UserHomeDir()

@@ -5,15 +5,15 @@ import "github.com/urfave/cli/v2"
 var (
 	commands = []*cli.Command{
 		{
-			Name:      "ls",
+			Name:      "list",
 			Usage:     "List installed versions",
-			UsageText: "g ls",
+			UsageText: "g list",
 			Action:    list,
 		},
 		{
-			Name:      "ls-remote",
+			Name:      "listall",
 			Usage:     "List remote versions available for install",
-			UsageText: "g ls-remote [stable|archived|unstable]",
+			UsageText: "g listall [stable|archived|unstable]",
 			Action:    listRemote,
 		},
 		{
